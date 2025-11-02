@@ -45,9 +45,10 @@ def ocr_and_analyze():
         ocr_text = ocr_text.strip() if isinstance(ocr_text, str) else str(ocr_text)
         print("🧾 OCR text preview:\n", ocr_text[:300])
 
-        # 2️⃣ Prompt: thêm hướng dẫn phân loại category
+                # 2️⃣ Prompt: thêm hướng dẫn phân loại category + quy tắc tiền Việt
         prompt = f"""
 You are an intelligent AI specialized in extracting and understanding invoice information in ANY language.
+
 Analyze the following OCR text and return a structured JSON object with these exact fields:
 
 {{
@@ -60,6 +61,11 @@ Analyze the following OCR text and return a structured JSON object with these ex
 
 The available categories are:
 {json.dumps(categories, indent=2) if categories else "[]"}
+
+Special instruction for currency interpretation:
+- If the currency is Vietnamese Dong (VND), note that both '.' (dot) and ',' (comma) are used only as thousand separators for readability, NOT as decimal points.
+  Example: "52.000" or "52,000" both mean 52000 VND, not 52.0.
+- Always treat such numbers as integer amounts when currency is VND.
 
 If none of the categories match clearly, return null for categoryId.
 
