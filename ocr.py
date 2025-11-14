@@ -56,24 +56,31 @@ Analyze the following OCR text and return a structured JSON object with these ex
   "date": "Invoice or transaction date (format: dd/mm/yyyy or similar)",
   "total_amount": "Total payment amount",
   "currency": "Predicted currency (e.g. VND, USD, EUR, JPY)",
-  "categoryId": "Best matching category ID from provided list"
+  "categoryId": "Best matching category ID from provided list",
+  "needRescan": "true or false depending on extraction reliability"
 }}
+
+Rules for needRescan:
+- needRescan = true if total_amount is missing, unreadable, null, empty, or uncertain.
+- needRescan = false if total_amount is extracted confidently.
+- Do NOT rely on image quality; only judge based on OCR text content.
 
 The available categories are:
 {json.dumps(categories, indent=2) if categories else "[]"}
 
 Special instruction for currency interpretation:
-- If the currency is Vietnamese Dong (VND), note that both '.' (dot) and ',' (comma) are used only as thousand separators for readability, NOT as decimal points.
-  Example: "52.000" or "52,000" both mean 52000 VND, not 52.0.
-- Always treat such numbers as integer amounts when currency is VND.
+- If the currency is Vietnamese Dong (VND), note that both '.' (dot) and ',' (comma) are thousand separators, NOT decimal points.
+  Example: "52.000" or "52,000" both mean 52000 VND.
+- Always treat VND amounts as integers.
 
 If none of the categories match clearly, return null for categoryId.
 
 Here is the OCR text:
 {ocr_text}
 
-Return only valid JSON, no explanations, no markdown.
+Return ONLY valid JSON. No explanations. No markdown.
 """
+
 
         # 3️⃣ Gọi Gemini
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
