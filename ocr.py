@@ -109,7 +109,8 @@ Return ONLY valid JSON. No explanations. No markdown.
             "TransactionDate": json_data.get("date"),
             "Amount": json_data.get("total_amount"),
             "Currency": json_data.get("currency"),
-            "categoryId": json_data.get("categoryId")
+            "categoryId": json_data.get("categoryId"),
+            "eedRescan": json_data.get("needRescan")
         }
 
         return jsonify(filtered)
