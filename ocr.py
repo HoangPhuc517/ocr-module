@@ -10,7 +10,7 @@ app = Flask(__name__)
 client = Client("hoangphuc05/ocr-invoice")
 
 # ✅ Gemini API config
-GEMINI_API_KEY = "AIzaSyB6leswzB9PCYkG-snSyJmOwt19LcOb-po"
+GEMINI_API_KEY = "AIzaSyD0lag5_Vo7QKicaIORdaFKGQ6-vs_LkDk"
 GEMINI_MODEL = "gemini-2.0-flash"
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
 
