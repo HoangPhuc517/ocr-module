@@ -3,6 +3,7 @@ from gradio_client import Client, handle_file
 import os
 import requests
 import json
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -10,7 +11,7 @@ app = Flask(__name__)
 client = Client("hoangphuc05/ocr-invoice")
 
 # ✅ Gemini API config
-GEMINI_API_KEY = "AIzaSyD0lag5_Vo7QKicaIORdaFKGQ6-vs_LkDk"
+GEMINI_API_KEY = "AIzaSyD89is8rkvTdGa_370MPyLZnIJj5ldVES8"
 GEMINI_MODEL = "gemini-2.0-flash"
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
 
@@ -114,6 +115,104 @@ Return ONLY valid JSON. No explanations. No markdown.
         }
 
         return jsonify(filtered)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+
+    # ================================================================
+# 2) NEW API — Classify Expenses (như C# ClassifyExpensesAsync)
+# ================================================================
+@app.route("/classify-expense", methods=["POST"])
+def classify_expenses():
+    """
+    Input:
+    {
+        "prompt": "hôm nay đi siêu thị mua đồ 150k",
+        "emotion": "vui vẻ",
+        "categories": [
+            { "Id": "guid...", "Name": "Ăn uống" },
+            { "Id": "guid...", "Name": "Mua sắm" }
+        ]
+    }
+    """
+
+    try:
+        data = request.get_json()
+
+        prompt = data.get("prompt")
+        emotion = data.get("emotion")
+        categories = data.get("categories", [])
+
+        if not prompt:
+            return jsonify({"error": "prompt is required"}), 400
+
+        # ===== Mapping categories =====
+        category_mapping = "\n".join([f"- {c['Name']} (ID: {c['Id']})" for c in categories])
+
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # ===== Build instruction (copy từ C# sang Python) =====
+        instruction = f"""
+Bạn là chuyên gia phân tích ngôn ngữ tiếng Việt.
+
+Dưới đây là danh sách category:
+{category_mapping}
+
+LƯU Ý QUAN TRỌNG:
+- KHÔNG tự tạo record nếu thiếu số tiền hoặc thiếu category.
+- Nếu không xác định được → trả về:
+  detail = [], total = 0, advice = "..."
+- Nếu lời nói không liên quan chi tiêu → trả về detail = [], total = 0
+- Không được bịa thông tin.
+
+Ngày hiện tại: {now}
+
+Người dùng nói:
+{prompt}
+
+Emotion: {emotion}
+
+Trả về JSON theo schema:
+{{
+  "total": 0,
+  "detail": [
+    {{
+      "category": {{ "id": "UUID", "name": "Tên" }},
+      "date": "YYYY-MM-DD HH:mm:ss",
+      "price": 0,
+      "note": "string"
+    }}
+  ],
+  "advice": "string"
+}}
+"""
+
+        # ===== Gemini Call Payload =====
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": instruction}]
+                }
+            ]
+        }
+
+        response = requests.post(GEMINI_URL, json=payload)
+        result = response.json()
+
+        if "candidates" not in result:
+            return jsonify({"error": "Gemini returned no output", "raw": result}), 500
+
+        text = result["candidates"][0]["content"]["parts"][0]["text"]
+        text = text.replace("```json", "").replace("```", "").strip()
+
+        try:
+            json_data = json.loads(text)
+        except:
+            json_data = {"raw_text": text}
+
+        return jsonify(json_data)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
