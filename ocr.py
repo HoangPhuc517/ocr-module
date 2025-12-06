@@ -71,10 +71,20 @@ Rules for needRescan:
 The available categories are:
 {json.dumps(categories, indent=2) if categories else "[]"}
 
-Special instruction for currency interpretation:
-- If the currency is Vietnamese Dong (VND), note that both '.' (dot) and ',' (comma) are thousand separators, NOT decimal points.
-  Example: "52.000" or "52,000" both mean 52000 VND, "1.850,00" or "1,850.00" mean 1850.
-- Always treat VND amounts as integers.
+### Special Instruction for Currency Interpretation ###
+
+1. **GENERAL RULE (For USD, EUR, JPY, etc.):**
+   - The **dot (.)** is the decimal separator (e.g., $1,234.50).
+   - The **comma (,)** is the thousand separator.
+   - Example: For USD, "1,580.00" means 1580.00.
+
+2. **SPECIFIC RULE (For VND - Vietnamese Dong):**
+   - VND amounts are **ALWAYS INTEGERS** for extraction purposes.
+   - For VND, **both dot (.) and comma (,) are thousand separators.**
+   - If you detect VND, any trailing separators followed by two or three digits (like ".00" or ",000") should be ignored or treated as part of the integer amount.
+   - **VND Example:**
+     - "1.580.000" means 1580000 VND.
+     - **"1,580.00" means 1580 VND.**
 
 If none of the categories match clearly, return null for categoryId.
 
