@@ -73,7 +73,7 @@ The available categories are:
 
 Special instruction for currency interpretation:
 - If the currency is Vietnamese Dong (VND), note that both '.' (dot) and ',' (comma) are thousand separators, NOT decimal points.
-  Example: "52.000" or "52,000" both mean 52000 VND, "1.850,00" mean 1850.
+  Example: "52.000" or "52,000" both mean 52000 VND, "1.850,00" or "1,850.00" mean 1850.
 - Always treat VND amounts as integers.
 
 If none of the categories match clearly, return null for categoryId.
