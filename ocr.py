@@ -87,7 +87,7 @@ Return ONLY valid JSON. No explanations. No markdown.
 
         # 3️⃣ Gọi Gemini
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
-        response = requests.post(GEMINI_URL, json=payload)
+        response = requests.post(GEMINI_URL_VOICE, json=payload)
         data = response.json()
 
         if "candidates" not in data:
@@ -200,7 +200,7 @@ Trả về JSON theo schema:
             ]
         }
 
-        response = requests.post(GEMINI_URL, json=payload)
+        response = requests.post(GEMINI_URL_VOICE, json=payload)
         result = response.json()
 
         if "candidates" not in result:
