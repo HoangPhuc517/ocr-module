@@ -1,34 +1,40 @@
-# flyctl launch added from .gitignore
-# Python cache & build
-**\__pycache__
-**\*.py[cod]
-**\*.pyo
-**\*.pyd
-**\*.so
-**\*.egg
-**\*.egg-info
-**\dist
-**\build
+# SỬA: Loại bỏ ký tự '\' và sử dụng '/' theo chuẩn Unix
 
-# Virtual environments
-**\.venv
-**\env
-**\venv
+# Git
+.git/
+.gitignore
+
+# Fly.io
+fly.toml  # Loại trừ file cấu hình fly.io
+
+# File Cấu hình CI/CD
+.github/
+
+# Python cache & build (Sửa **\ thành **/)
+**/__pycache__
+**/*.py[cod]
+**/*.pyo
+**/*.pyd
+**/*.so
+**/*.egg
+**/*.egg-info
+**/dist/
+**/build/
+
+# Môi trường ảo (Sửa venv\**\* thành venv/)
+venv/
+.venv/
+env/
 
 # IDE/editor configs
-**\.vscode
-**\.idea
-**\*.swp
+.vscode/
+.idea/
+*.swp
 
 # OS
-**\.DS_Store
-**\Thumbs.db
+.DS_Store
+Thumbs.db
 
-# Logs & temp
-**\*.log
-**\temp_*
-
-# flyctl launch added from venv\.gitignore
-# Created by venv; see https://docs.python.org/3/library/venv.html
-venv\**\*
-fly.toml
+# Logs & Files tạm (Sửa **\*.log thành **/*.log)
+**/*.log
+temp_*
