@@ -21,3 +21,6 @@ services:
       
       - key: GEMINI_API_KEY_VOICE
         sync: false
+
+      - key: MODEL_AI
+        sync: false
