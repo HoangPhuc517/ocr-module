@@ -1,0 +1,16 @@
+services:
+  # Khai báo dịch vụ web
+  - type: web
+    name: python-ocr-app       # Tên app hiển thị trên Render
+    env: docker                # Báo cho Render biết dùng Dockerfile
+    plan: free                 # Dùng gói miễn phí
+    region: singapore          # Chọn server Sing cho nhanh về VN
+    branch: main               # Theo dõi nhánh main (hoặc master)
+
+    # Cấu hình tự động deploy (CI/CD)
+    autoDeploy: true           # true = cứ push code là deploy
+
+    # Biến môi trường (nếu cần)
+    envVars:
+      - key: PORT
+        value: 10000           # Render mặc định dùng cổng 10000

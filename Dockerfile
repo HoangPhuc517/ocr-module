@@ -18,8 +18,8 @@ COPY . .
 ENV PORT 8080
 
 # Healthcheck: Kiểm tra cổng 8080 cứ mỗi 5 giây
-HEALTHCHECK --interval=5s --timeout=3s \
-  CMD curl --fail http://localhost:8080/ || exit 1
+# HEALTHCHECK --interval=5s --timeout=3s \
+#   CMD curl --fail http://localhost:8080/ || exit 1
 
 # Chạy ứng dụng bằng Gunicorn
 # Thay 'ocr:app' bằng 'tên_file_python:tên_biến_flask_app'
