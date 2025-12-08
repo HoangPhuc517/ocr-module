@@ -17,6 +17,11 @@ GEMINI_MODEL = os.environ.get("MODEL_AI")
 GEMINI_URL_OCR = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY_OCR}"
 GEMINI_URL_VOICE = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY_VOICE}"
 
+# 👇 THÊM 2 DÒNG NÀY ĐỂ DEBUG 👇
+print(f"👉 DEBUG MODEL NAME: '{GEMINI_MODEL}'")
+print(f"👉 DEBUG FULL URL: '{GEMINI_URL_VOICE}'")
+# 👆 ------------------------ 👆
+
 @app.route("/ocr", methods=["POST"])
 def ocr_and_analyze():
     """
