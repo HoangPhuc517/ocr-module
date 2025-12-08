@@ -13,7 +13,8 @@ client = Client("hoangphuc05/ocr-invoice")
 # ✅ Gemini API config
 GEMINI_API_KEY_OCR = os.environ.get("GEMINI_API_KEY_OCR")
 GEMINI_API_KEY_VOICE = os.environ.get("GEMINI_API_KEY_VOICE")
-GEMINI_MODEL = os.environ.get("MODEL_AI")
+# GEMINI_MODEL = os.environ.get("MODEL_AI")
+GEMINI_MODEL = "gemini-1.5-flash"
 GEMINI_URL_OCR = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY_OCR}"
 GEMINI_URL_VOICE = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY_VOICE}"
 
