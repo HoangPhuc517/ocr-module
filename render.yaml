@@ -14,3 +14,10 @@ services:
     envVars:
       - key: PORT
         value: 10000           # Render mặc định dùng cổng 10000
+
+    # Khai báo placeholder cho 2 key này
+      - key: GEMINI_API_KEY_OCR
+        sync: false  # Quan trọng: false nghĩa là "đừng lưu trong file này, tôi sẽ nhập trên web"
+      
+      - key: GEMINI_API_KEY_VOICE
+        sync: false
