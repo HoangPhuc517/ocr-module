@@ -14,13 +14,9 @@ client = Client("hoangphuc05/ocr-invoice")
 GEMINI_API_KEY_OCR = os.environ.get("GEMINI_API_KEY_OCR")
 GEMINI_API_KEY_VOICE = os.environ.get("GEMINI_API_KEY_VOICE")
 GEMINI_MODEL = os.environ.get("MODEL_AI")
-GEMINI_URL_OCR = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY_OCR}"
-GEMINI_URL_VOICE = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY_VOICE}"
-
-# 👇 THÊM 2 DÒNG NÀY ĐỂ DEBUG 👇
-print(f"👉 DEBUG MODEL NAME: '{GEMINI_MODEL}'")
-print(f"👉 DEBUG FULL URL: '{GEMINI_URL_VOICE}'")
-# 👆 ------------------------ 👆
+GEMINI_VERSION = os.environ.get("MODEL_VERSION")
+GEMINI_URL_OCR = f"https://generativelanguage.googleapis.com/{GEMINI_VERSION}/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY_OCR}"
+GEMINI_URL_VOICE = f"https://generativelanguage.googleapis.com/{GEMINI_VERSION}/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY_VOICE}"
 
 @app.route("/ocr", methods=["POST"])
 def ocr_and_analyze():
