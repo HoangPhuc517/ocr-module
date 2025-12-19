@@ -375,7 +375,7 @@ Trả về JSON với format:
 # Thêm đoạn này để cron-job ping vào không bị lỗi 404
 @app.route("/", methods=["GET"])
 def keep_alive():
-    print("🔔 Ping received at home.")
+    print("🔔 Ping received at home.\nCheckin log.")
     print ("--------------------------" * 3)
     return "AI MODULE By VINANCE!", 200
 
