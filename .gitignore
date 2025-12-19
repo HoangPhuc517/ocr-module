@@ -10,6 +10,7 @@ dist/
 build/
 
 # Virtual environments
+.env
 .venv/
 env/
 venv/

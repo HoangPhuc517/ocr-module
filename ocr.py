@@ -4,6 +4,14 @@ import os
 import requests
 import json
 from datetime import datetime
+from datetime import timezone
+
+# ✅ Tự động load file .env nếu có
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 app = Flask(__name__)
 
@@ -13,16 +21,33 @@ client = Client("hoangphuc05/ocr-invoice")
 # ✅ Gemini API config
 GEMINI_API_KEY_VOICE = os.environ.get("GEMINI_API_KEY_VOICE")
 GEMINI_API_KEY_OCR = os.environ.get("GEMINI_API_KEY_OCR")
+GEMINI_API_KEY_EMAIL = os.environ.get("GEMINI_API_KEY_EMAIL")
+
 GEMINI_MODEL = os.environ.get("MODEL_AI", "gemini-2.5-flash-lite")
 GEMINI_VERSION = os.environ.get("GEMINI_VERSION", "v1")
-# GEMINI_API_KEY_OCR = ""
-# GEMINI_MODEL = "gemini-2.5-flash-lite"
-# GEMINI_VERSION = "v1"
-GEMINI_URL_OCR = f"https://generativelanguage.googleapis.com/{GEMINI_VERSION}/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY_OCR}"
-GEMINI_URL_VOICE = f"https://generativelanguage.googleapis.com/{GEMINI_VERSION}/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY_VOICE}"
+
+
+# ✅ Function tạo Url
+def get_gemini_url(api_key):
+    """
+    Hàm này nhận vào API Key và trả về URL hoàn chỉnh của Gemini.
+    """
+    if not api_key:
+        print("⚠️ Cảnh báo: API Key đang bị rỗng!")
+        return None
+        
+    return f"https://generativelanguage.googleapis.com/{GEMINI_VERSION}/models/{GEMINI_MODEL}:generateContent?key={api_key}"
+
+
 
 @app.route("/ocr", methods=["POST"])
 def ocr_and_analyze():
+    
+    print("🔔 New /ocr request received")
+    print("/n" * 5)
+
+    url_ocr = get_gemini_url(GEMINI_API_KEY_OCR)
+
     """
     Nhận ảnh + danh sách categories → OCR → Gọi Gemini → Trả JSON gồm:
     store_name, date, total_amount, currency, categoryId
@@ -101,7 +126,7 @@ Return ONLY valid JSON. No explanations. No markdown.
 
         # 3️⃣ Gọi Gemini
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
-        response = requests.post(GEMINI_URL_OCR, json=payload)
+        response = requests.post(url_ocr, json=payload)
         data = response.json()
 
         if "candidates" not in data:
@@ -152,6 +177,8 @@ def classify_expenses():
         ]
     }
     """
+
+    url_voice = get_gemini_url(GEMINI_API_KEY_VOICE)
 
     try:
         data = request.get_json()
@@ -214,7 +241,7 @@ Trả về JSON theo schema:
             ]
         }
 
-        response = requests.post(GEMINI_URL_VOICE, json=payload)
+        response = requests.post(url_voice, json=payload)
         result = response.json()
 
         if "candidates" not in result:
@@ -232,6 +259,118 @@ Trả về JSON theo schema:
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+
+# 3️⃣ [MỚI] API Phân loại Email (Port từ C# sang)
+@app.route("/classify-email", methods=["POST"])
+def classify_email():
+
+    current_date = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    """
+    Input JSON:
+    {
+        "subject": "Tiêu đề email",
+        "snippet": "Đoạn trích dẫn...",
+        "body": "Nội dung đầy đủ...",
+        "categories": [ {"Id": "...", "Name": "..."} ]
+    }
+    """
+    url_email = get_gemini_url(GEMINI_API_KEY_EMAIL)
+
+    try:
+        data = request.get_json()
+        subject = data.get("subject", "")
+        snippet = data.get("snippet", "")
+        body = data.get("body", "")
+        categories = data.get("categories", [])
+
+        # 1. Xây dựng Prompt (Dịch từ C#)
+        instruction = f"""Bạn là chuyên gia phân loại email. Nhiệm vụ của bạn là xác định xem email có phải là hóa đơn (invoice), biên lai (receipt), hay thông báo thanh toán không.
+
+Các dấu hiệu email là hóa đơn/biên lai:
+- Tiêu đề chứa từ khóa: hóa đơn, invoice, receipt, biên lai, thanh toán, payment, order, đơn hàng
+- Nội dung chứa thông tin: số tiền, tổng tiền, total, amount, giá trị, VAT, thuế
+- Có thông tin về giao dịch mua bán, thanh toán
+- Có mã đơn hàng, mã giao dịch
+- Đến từ các nhà cung cấp dịch vụ, cửa hàng, siêu thị, ứng dụng thanh toán
+
+Ngày hiện tại (UTC) là: {current_date}. Nếu không xác định được ngày giao dịch trong email, hãy dùng ngày hiện tại (UTC).
+
+Trả về JSON với format:
+{{
+  "isInvoice": true/false,
+  "confidence": 0.0-1.0 (độ tin cậy),
+  "reason": "Lý do phân loại",
+  "amount": number (số tiền nếu tìm thấy, nếu không để null),
+  "note": "ghi chú ngắn gọn về giao dịch (nếu có)",
+  "categoryId": "GUID của category nếu map được từ danh sách category cung cấp",
+  "transactionDate": "Ngày giao dịch (ISO 8601), nếu không có thì trả null"
+}}"""
+
+        if categories:
+            cat_lines = "\n".join([
+            f"- {c.get('Name', c.get('name', 'Unknown'))} (ID: {c.get('Id', c.get('id', 'Unknown'))})" 
+            for c in categories
+        ])
+            instruction += f"\n\nDanh sách category khả dụng (name - ID):\n{cat_lines}\nHãy chọn đúng ID từ danh sách này nếu xác định được."
+
+        body_preview = body[:1000] + "..." if len(body) > 1000 else body
+        email_content = f"Tiêu đề: {subject}\n\nTóm tắt: {snippet}\n\nNội dung: {body_preview}"
+        
+        final_prompt = f"{instruction}\n\n{email_content}"
+
+        # 2. Cấu hình JSON Schema (Giống hệt C#)
+        payload = {
+            "contents": [{
+                "role": "user",
+                "parts": [{"text": final_prompt}]
+            }],
+            "generationConfig": {
+                "responseMimeType": "application/json",
+                "responseSchema": {
+                    "type": "object",
+                    "properties": {
+                        "isInvoice": {"type": "boolean"},
+                        "confidence": {"type": "number"},
+                        "reason": {"type": "string"},
+                        "amount": {"type": "number"},
+                        "note": {"type": "string"},
+                        "categoryId": {"type": "string"},
+                        "transactionDate": {"type": "string", "format": "date-time"}
+                    },
+                    "required": ["isInvoice", "confidence", "reason"]
+                }
+            }
+        }
+
+        # 3. Gọi Gemini
+        response = requests.post(url_email, json=payload)
+        
+        if response.status_code != 200:
+            print(f"❌ Gemini Error: {response.text}")
+            return jsonify({"error": "Gemini API Error", "details": response.text}), response.status_code
+
+        result = response.json()
+        
+        # 4. Parse kết quả
+        try:
+            text = result["candidates"][0]["content"]["parts"][0]["text"]
+            # Gemini trả về JSON chuẩn rồi, load trực tiếp
+            return jsonify(json.loads(text))
+        except Exception as ex:
+            # Fallback nếu lỗi parse
+            return jsonify({
+                "isInvoice": False,
+                "confidence": 0.0,
+                "reason": "Lỗi phân tích output từ AI",
+                "raw": str(result)
+            })
+
+    except Exception as e:
+        print(f"🔥 Exception: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    
 
 # Thêm đoạn này để cron-job ping vào không bị lỗi 404
 @app.route("/", methods=["GET"])
