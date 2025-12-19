@@ -233,6 +233,10 @@ Trả về JSON theo schema:
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# Thêm đoạn này để cron-job ping vào không bị lỗi 404
+@app.route("/", methods=["GET"])
+def keep_alive():
+    return "Server is alive!", 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
