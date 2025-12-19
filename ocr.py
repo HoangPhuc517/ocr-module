@@ -11,10 +11,13 @@ app = Flask(__name__)
 client = Client("hoangphuc05/ocr-invoice")
 
 # ✅ Gemini API config
-GEMINI_API_KEY_OCR = os.environ.get("GEMINI_API_KEY_OCR")
 GEMINI_API_KEY_VOICE = os.environ.get("GEMINI_API_KEY_VOICE")
-GEMINI_MODEL = os.environ.get("MODEL_AI")
-GEMINI_VERSION = os.environ.get("GEMINI_VERSION")
+GEMINI_API_KEY_OCR = os.environ.get("GEMINI_API_KEY_OCR")
+GEMINI_MODEL = os.environ.get("MODEL_AI", "gemini-2.5-flash-lite")
+GEMINI_VERSION = os.environ.get("GEMINI_VERSION", "v1")
+# GEMINI_API_KEY_OCR = ""
+# GEMINI_MODEL = "gemini-2.5-flash-lite"
+# GEMINI_VERSION = "v1"
 GEMINI_URL_OCR = f"https://generativelanguage.googleapis.com/{GEMINI_VERSION}/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY_OCR}"
 GEMINI_URL_VOICE = f"https://generativelanguage.googleapis.com/{GEMINI_VERSION}/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY_VOICE}"
 
@@ -98,7 +101,7 @@ Return ONLY valid JSON. No explanations. No markdown.
 
         # 3️⃣ Gọi Gemini
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
-        response = requests.post(GEMINI_URL_VOICE, json=payload)
+        response = requests.post(GEMINI_URL_OCR, json=payload)
         data = response.json()
 
         if "candidates" not in data:
