@@ -324,7 +324,18 @@ Trả về JSON với format:
             f"- {c.get('Name', c.get('name', 'Unknown'))} (ID: {c.get('Id', c.get('id', 'Unknown'))})" 
             for c in categories
         ])
-            instruction += f"\n\nDanh sách category khả dụng (name - ID):\n{cat_lines}\nHãy chọn đúng ID từ danh sách này nếu xác định được."
+            instruction += f"""
+
+Danh sách category khả dụng:
+{cat_lines}
+
+**QUAN TRỌNG về categoryId:**
+- BẮT BUỘC phải chọn một categoryId từ danh sách trên.
+- Nếu email là hóa đơn/biên lai (isInvoice=true), hãy phân tích nội dung và chọn category phù hợp nhất.
+- Ví dụ: Vé xem phim → "Giải trí", siêu thị → "Mua sắm", nhà hàng → "Ăn uống", v.v.
+- Nếu không chắc chắn, hãy chọn category gần nhất dựa trên ngữ cảnh.
+- KHÔNG ĐƯỢC để categoryId là null nếu isInvoice = true.
+"""
 
         body_preview = body[:1000] + "..." if len(body) > 1000 else body
         email_content = f"Tiêu đề: {subject}\n\nTóm tắt: {snippet}\n\nNội dung: {body_preview}"
@@ -350,7 +361,7 @@ Trả về JSON với format:
                         "categoryId": {"type": "string"},
                         "transactionDate": {"type": "string", "format": "date-time"}
                     },
-                    "required": ["isInvoice", "confidence", "reason"]
+                    "required": ["isInvoice", "confidence", "reason", "note", "categoryId"]
                 }
             }
         }
