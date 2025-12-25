@@ -82,49 +82,162 @@ def ocr_and_analyze():
 
                 # 2️⃣ Prompt: thêm hướng dẫn phân loại category + quy tắc tiền Việt
         prompt = f"""
-You are an intelligent AI specialized in extracting and understanding invoice information in ANY language.
+BẠN LÀ CHUYÊN GIA TRÍCH XUẤT THÔNG TIN HÓA ĐƠN (INVOICE/RECEIPT) ĐA NGÔN NGỮ.
 
-Analyze the following OCR text and return a structured JSON object with these exact fields:
+==================================================
+NHIỆM VỤ:
+==================================================
+Phân tích văn bản OCR và trích xuất thông tin hóa đơn thành JSON với các trường sau:
 
-{{
-  "store_name": "Store or company name",
-  "date": "Invoice or transaction date (format: dd/mm/yyyy or similar)",
-  "total_amount": "Total payment amount",
-  "currency": "Predicted currency (e.g. VND, USD, EUR, JPY)",
-  "categoryId": "Best matching category ID from provided list",
-  "needRescan": "true or false depending on extraction reliability"
+{{\
+  "store_name": "Tên cửa hàng hoặc công ty",
+  "date": "Ngày giao dịch (định dạng: dd/mm/yyyy hoặc tương tự)",
+  "total_amount": "Tổng số tiền thanh toán (dạng số)",
+  "currency": "Đơn vị tiền tệ (VND, USD, EUR, JPY, etc.)",
+  "categoryId": "ID của category phù hợp nhất từ danh sách",
+  "needRescan": "true hoặc false"
 }}
 
-Rules for needRescan:
-- needRescan = true if total_amount is missing, unreadable, null, empty, or uncertain.
-- needRescan = false if total_amount is extracted confidently.
-- Do NOT rely on image quality; only judge based on OCR text content.
-
-The available categories are:
+==================================================
+DANH SÁCH CATEGORY KHẢ DỤNG:
+==================================================
 {json.dumps(categories, indent=2) if categories else "[]"}
 
-### Special Instruction for Currency Interpretation ###
+==================================================
+QUY TẮC TRÍCH XUẤT:
+==================================================
 
-1. **GENERAL RULE (For USD, EUR, JPY, etc.):**
-   - The **dot (.)** is the decimal separator (e.g., $1,234.50).
-   - The **comma (,)** is the thousand separator.
-   - Example: For USD, "1,580.00" means 1580.00.
+1. **store_name (Tên cửa hàng):**
+   - Tìm tên công ty, cửa hàng, hoặc nhà hàng trên hóa đơn
+   - Thường ở đầu hóa đơn, có thể in hoa hoặc in đậm
+   - Nếu không tìm thấy → null
 
-2. **SPECIFIC RULE (For VND - Vietnamese Dong):**
-   - VND amounts are **ALWAYS INTEGERS** for extraction purposes.
-   - For VND, **both dot (.) and comma (,) are thousand separators.**
-   - If you detect VND, any trailing separators followed by two or three digits (like ".00" or ",000") should be ignored or treated as part of the integer amount.
-   - **VND Example:**
-     - "1.580.000" means 1580000 VND.
-     - **"1,580.00" means 1580 VND.**
+2. **date (Ngày giao dịch):**
+   - Tìm ngày/tháng/năm hoặc giờ phút
+   - Các định dạng phổ biến: dd/mm/yyyy, dd-mm-yyyy, yyyy-mm-dd
+   - Từ khóa: "Date", "Ngày", "Time", "Thời gian"
+   - Nếu không tìm thấy → null
 
-If none of the categories match clearly, return null for categoryId.
+3. **total_amount (Tổng tiền):**
+   - Tìm số tiền cuối cùng (tổng thanh toán)
+   - Từ khóa: "Total", "Tổng", "Thanh toán", "Amount", "Payment"
+   - CHỈ lấy số, KHÔNG bao gồm ký hiệu tiền tệ (VND, USD, đ, $)
+   - Nếu KHÔNG TÌM THẤY hoặc KHÔNG RÕ RÀNG → null
 
-Here is the OCR text:
+4. **currency (Đơn vị tiền tệ):**
+   - Phát hiện đơn vị tiền tệ trên hóa đơn
+   - Ký hiệu: VND, đ, đồng → "VND"
+   - Ký hiệu: $, USD → "USD"
+   - Ký hiệu: €, EUR → "EUR"
+   - Ký hiệu: ¥, JPY → "JPY"
+   - Mặc định (nếu không rõ và nghi ngờ là Việt Nam) → "VND"
+
+5. **categoryId (Phân loại):**
+   - Chọn category phù hợp NHẤT từ DANH SÁCH TRÊN dựa vào tên cửa hàng/sản phẩm
+   - Ví dụ phân loại:
+     * Siêu thị, cửa hàng thực phẩm → "Mua sắm"
+     * Nhà hàng, quán ăn, cafe → "Ăn uống"
+     * Cửa hàng quần áo, giày dép → "Mua sắm"
+     * Xăng dầu, rửa xe → "Xe cộ" hoặc "Di chuyển"
+     * Rạp chiếu phim, karaoke → "Giải trí"
+   - Nếu KHÔNG CHẮC CHẮN hoặc không có category phù hợp → null
+
+6. **needRescan (Cần quét lại):**
+   - needRescan = **true** NẾU:
+     * total_amount bị thiếu (null)
+     * total_amount không rõ ràng
+     * Văn bản OCR quá mờ/lỗi không đọc được
+   - needRescan = **false** NẾU:
+     * total_amount trích xuất thành công
+     * Thông tin hóa đơn rõ ràng
+   - **CHỈ DỰA VÀO NỘI DUNG VĂN BẢN OCR**, không dựa vào chất lượng ảnh
+
+==================================================
+XỬ LÝ SỐ TIỀN (CURRENCY PARSING):
+==================================================
+
+**QUY TẮC CHUNG (USD, EUR, JPY, etc.):**
+- Dấu chấm (.) = phân cách thập phân
+- Dấu phẩy (,) = phân cách nghìn
+- Ví dụ USD: "1,234.50" → 1234.50
+
+**QUY TẮC ĐẶC BIỆT CHO VND (TIỀN VIỆT):**
+- VND LUÔN LÀ SỐ NGUYÊN (không có phần thập phân)
+- Cả dấu chấm (.) và phẩy (,) đều là phân cách nghìn
+- Bỏ qua các hậu tố như ".00", ".000", ",00", ",000"
+- **Ví dụ VND:**
+  * "1.580.000" → 1580000
+  * "1,580.00" → 1580 (KHÔNG PHẢI 1580.00)
+  * "50.000đ" → 50000
+  * "2.500.000 VND" → 2500000
+  * "100,000 đồng" → 100000
+
+==================================================
+VÍ DỤ PHÂN TÍCH:
+==================================================
+
+**Ví dụ 1 - Hóa đơn siêu thị:**
+OCR Text: "VINMART\\nNgày: 25/12/2024\\nTổng cộng: 1.580.000đ"
+Output:
+{{
+  "store_name": "VINMART",
+  "date": "25/12/2024",
+  "total_amount": 1580000,
+  "currency": "VND",
+  "categoryId": "[ID của Mua sắm]",
+  "needRescan": false
+}}
+
+**Ví dụ 2 - Hóa đơn nhà hàng:**
+OCR Text: "PHỞ 24\\n15/12/2024\\nTotal: 350.000 VND"
+Output:
+{{
+  "store_name": "PHỞ 24",
+  "date": "15/12/2024",
+  "total_amount": 350000,
+  "currency": "VND",
+  "categoryId": "[ID của Ăn uống]",
+  "needRescan": false
+}}
+
+**Ví dụ 3 - Hóa đơn thiếu thông tin:**
+OCR Text: "Coffee Shop\\nDate: 20/12/2024\\nThank you!"
+Output:
+{{
+  "store_name": "Coffee Shop",
+  "date": "20/12/2024",
+  "total_amount": null,
+  "currency": null,
+  "categoryId": null,
+  "needRescan": true
+}}
+
+**Ví dụ 4 - Hóa đơn USD:**
+OCR Text: "Amazon\\n12/25/2024\\nTotal: $45.99"
+Output:
+{{
+  "store_name": "Amazon",
+  "date": "12/25/2024",
+  "total_amount": 45.99,
+  "currency": "USD",
+  "categoryId": "[ID của Mua sắm]",
+  "needRescan": false
+}}
+
+==================================================
+VĂN BẢN OCR CẦN PHÂN TÍCH:
+==================================================
 {ocr_text}
 
-Return ONLY valid JSON. No explanations. No markdown.
+==================================================
+YÊU CẦU OUTPUT:
+==================================================
+- Trả về JSON hợp lệ
+- KHÔNG thêm markdown (```json)
+- KHÔNG giải thích thêm
+- CHỈ trả về JSON thuần túy
 """
+
 
 
         # 3️⃣ Gọi Gemini
@@ -173,10 +286,10 @@ def classify_expenses():
     Input:
     {
         "prompt": "hôm nay đi siêu thị mua đồ 150k",
-        "emotion": "vui vẻ",
         "categories": [
-            { "Id": "guid...", "Name": "Ăn uống" },
-            { "Id": "guid...", "Name": "Mua sắm" }
+            { "Id": "guid...", "Name": "Ăn uống", "Type": "Expense" },
+            { "Id": "guid...", "Name": "Mua sắm", "Type": "Expense" },
+            { "Id": "guid...", "Name": "Lương", "Type": "Income" }
         ]
     }
     """
@@ -187,50 +300,134 @@ def classify_expenses():
         data = request.get_json()
 
         prompt = data.get("prompt")
-        emotion = data.get("emotion")
         categories = data.get("categories", [])
 
         if not prompt:
             return jsonify({"error": "prompt is required"}), 400
 
-        # ===== Mapping categories =====
-        category_mapping = "\n".join([f"- {c['Name']} (ID: {c['Id']})" for c in categories])
+        # ===== Mapping categories với Type =====
+        category_mapping = "\n".join([f"- {c['Name']} (ID: {c['Id']}, Type: {c.get('Type', 'Unknown')})" for c in categories])
 
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # ===== Build instruction (copy từ C# sang Python) =====
+        # ===== Build instruction (không có emotion) =====
         instruction = f"""
-Bạn là chuyên gia phân tích ngôn ngữ tiếng Việt.
+BẠN LÀ CHUYÊN GIA PHÂN TÍCH TÀI CHÍNH TIẾNG VIỆT.
 
-Dưới đây là danh sách category:
+NGÀY GIỜ HIỆN TẠI: {now}
+
+DANH SÁCH CATEGORY KHẢ DỤNG:
 {category_mapping}
 
-LƯU Ý QUAN TRỌNG:
-- KHÔNG tự tạo record nếu thiếu số tiền hoặc thiếu category.
-- Nếu không xác định được → trả về:
-  detail = [], total = 0, advice = "..."
-- Nếu lời nói không liên quan chi tiêu → trả về detail = [], total = 0
-- Không được bịa thông tin.
+==================================================
+NHIỆM VỤ CỦA BẠN:
+==================================================
+Phân tích câu nói của người dùng và trích xuất thông tin giao dịch tài chính (chi tiêu, thu nhập, hoặc nợ).
 
-Ngày hiện tại: {now}
+==================================================
+QUY TẮC BẮT BUỘC:
+==================================================
+1. CHỈ tạo record khi CÓ ĐẦY ĐỦ: số tiền VÀ category phù hợp
+2. Nếu THIẾU số tiền HOẶC không xác định được category → trả về:
+   - detail = []
+   - total = 0
+   - advice = "[lý do tại sao không thể xử lý]"
 
-Người dùng nói:
-{prompt}
+3. Category phải được chọn TỪ DANH SÁCH TRÊN, bao gồm:
+   - "id": chính xác UUID từ danh sách
+   - "name": chính xác tên từ danh sách
+   - "type": chính xác loại từ danh sách (Expense/Income/Debt)
 
-Emotion: {emotion}
+4. KHÔNG được tự bịa category, số tiền, hoặc ngày tháng
 
-Trả về JSON theo schema:
+==================================================
+XỬ LÝ SỐ TIỀN (TIẾNG VIỆT):
+==================================================
+- "150k", "150 nghìn" → 150000
+- "1.5 triệu", "1tr5" → 1500000
+- "2 triệu", "2tr" → 2000000
+- "50 nghìn", "50k" → 50000
+- Bỏ qua ký tự: "đ", "vnđ", "đồng"
+
+==================================================
+XỬ LÝ THỜI GIAN:
+==================================================
+- Nếu KHÔNG nói rõ ngày giờ → dùng ngày giờ hiện tại: {now}
+- "hôm qua" → trừ 1 ngày
+- "hôm kia" → trừ 2 ngày
+- "tuần trước" → trừ 7 ngày
+- Nếu chỉ nói "chiều", "tối", "sáng" → dùng ngày hôm nay + giờ ước lượng
+
+==================================================
+VÍ DỤ PHÂN TÍCH:
+==================================================
+
+Input: "hôm nay mua đồ ăn siêu thị 150k"
+Output:
 {{
-  "total": 0,
+  "total": 150000,
   "detail": [
     {{
-      "category": {{ "id": "UUID", "name": "Tên" }},
-      "date": "YYYY-MM-DD HH:mm:ss",
-      "price": 0,
-      "note": "string"
+      "category": {{ "id": "[ID của Mua sắm]", "name": "Mua sắm", "type": "Expense" }},
+      "date": "{now}",
+      "price": 150000,
+      "note": "Mua đồ ăn siêu thị"
     }}
   ],
-  "advice": "string"
+  "advice": ""
+}}
+
+Input: "nhận lương 10 triệu"
+Output:
+{{
+  "total": 10000000,
+  "detail": [
+    {{
+      "category": {{ "id": "[ID của Lương]", "name": "Lương", "type": "Income" }},
+      "date": "{now}",
+      "price": 10000000,
+      "note": "Nhận lương"
+    }}
+  ],
+  "advice": ""
+}}
+
+Input: "đi chơi"  (thiếu số tiền)
+Output:
+{{
+  "total": 0,
+  "detail": [],
+  "advice": "Không xác định được số tiền giao dịch. Vui lòng cung cấp số tiền cụ thể."
+}}
+
+Input: "chi 200k" (thiếu category)
+Output:
+{{
+  "total": 0,
+  "detail": [],
+  "advice": "Không xác định được danh mục chi tiêu. Vui lòng mô tả rõ hơn mục đích sử dụng."
+}}
+
+==================================================
+CÂU NÓI CỦA NGƯỜI DÙNG:
+==================================================
+{prompt}
+
+==================================================
+YÊU CẦU OUTPUT:
+==================================================
+Trả về JSON đúng format sau (KHÔNG thêm markdown, KHÔNG giải thích):
+{{
+  "total": <tổng số tiền, kiểu number>,
+  "detail": [
+    {{
+      "category": {{ "id": "<UUID từ danh sách>", "name": "<Tên từ danh sách>", "type": "<Type từ danh sách>" }},
+      "date": "YYYY-MM-DD HH:mm:ss",
+      "price": <số tiền, kiểu number>,
+      "note": "<mô tả ngắn gọn>"
+    }}
+  ],
+  "advice": "<lời khuyên hoặc lý do từ chối nếu có>"
 }}
 """
 
