@@ -462,12 +462,15 @@ def forecast_current_month():
         # Nếu chưa hết tháng -> Chạy AI (PROPHET)
         # Group data theo ngày để train
         df_daily = df.groupby('ds')['y'].sum().reset_index()
-        full_range = pd.date_range(start=df_daily['ds'].min(), end=last_transaction_date)
+        
+        # ✅ QUAN TRỌNG: Fill 0 từ ngày đầu tiên đến NGÀY HIỆN TẠI (không phải ngày giao dịch cuối)
+        today = pd.Timestamp(now.date())  # Chuyển datetime thành Timestamp cho khớp kiểu
+        full_range = pd.date_range(start=df_daily['ds'].min(), end=today)
         df_daily = df_daily.set_index('ds').reindex(full_range, fill_value=0).reset_index()
         df_daily.columns = ['ds', 'y']
         
         # In ra data sau khi fill missing dates với 0
-        print("📅 Data sau khi fill 0 cho ngày không có giao dịch:")
+        print("📅 Data sau khi fill 0 cho ngày không có giao dịch (đến ngày hiện tại):")
         print(df_daily.to_markdown(index=False))
         print()
 
@@ -475,17 +478,22 @@ def forecast_current_month():
         m.add_country_holidays(country_name='VN')
         m.fit(df_daily)
 
-        # Dự đoán số ngày còn lại
-        days_remaining = (end_of_month_date - last_transaction_date).days
+        # ✅ Dự đoán số ngày còn lại từ NGÀY HIỆN TẠI đến cuối tháng
+        days_remaining = (end_of_month_date - today).days
         
         predicted_remaining = 0
         if days_remaining > 0:
             future = m.make_future_dataframe(periods=days_remaining)
             forecast = m.predict(future)
             
-            # Lọc lấy những ngày tương lai
-            future_mask = forecast['ds'] > last_transaction_date
+            # ✅ Lọc lấy những ngày từ NGÀY HIỆN TẠI trở đi
+            future_mask = forecast['ds'] > today
             remaining_forecast = forecast[future_mask].copy()
+            
+            # In ra kết quả dự đoán từ Prophet (trước khi xử lý)
+            print("🔮 Kết quả dự đoán từ Prophet (remaining_forecast):")
+            print(remaining_forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].to_markdown(index=False))
+            print()
             
             # Chặn số âm
             remaining_forecast['yhat'] = remaining_forecast['yhat'].apply(lambda x: max(0, x))
