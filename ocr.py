@@ -82,7 +82,27 @@ def ocr_and_analyze():
 
                 # 2️⃣ Prompt: thêm hướng dẫn phân loại category + quy tắc tiền Việt
         prompt = f"""
-BẠN LÀ CHUYÊN GIA TRÍCH XUẤT THÔNG TIN HÓA ĐƠN (INVOICE/RECEIPT) ĐA NGÔN NGỮ.
+BẠN LÀ CHUYÊN GIA TRÍCH XUẤT THÔNG TIN HÓA ĐƠN (INVOICE/RECEIPT) ĐA NGÔN NGỮ VỚI KHẢ NĂNG SỬA LỖI OCR.
+
+==================================================
+⚠️ LƯU Ý QUAN TRỌNG VỀ LỖI OCR:
+==================================================
+Văn bản OCR THƯỜNG có lỗi chính tả, thiếu dấu, hoặc ký tự bị nhận dạng sai.
+BẠN PHẢI SỬA LỖI VÀ SUY LUẬN để tìm thông tin đúng:
+
+**Lỗi OCR phổ biến:**
+- Thiếu dấu tiếng Việt: "THANH PHO" → "Thành phố"
+- Chữ dính nhau: "VEXEBUYTLUOT" → "Vé xe buýt lượt"
+- Chữ I/l nhầm: "CHIMINH" → "Chí Minh"
+- Số 0/O nhầm: "dong" → "đồng"
+- Khoảng cách sai: "benx" → "bến xe"
+
+**Chiến lược xử lý:**
+1. Đọc TOÀN BỘ văn bản trước để hiểu CONTEXT (vé xe? hóa đơn ăn? shopping?)
+2. Dòng ĐẦU TIÊN thường là tên công ty/cửa hàng (dù có lỗi)
+3. Tìm PATTERN: "VE XE", "HOA DON", "RECEIPT", "INVOICE"
+4. Sửa lỗi chính tả dựa trên context
+5. Tìm số tiền theo từ khóa: "Gia", "Tong", "Total", "dong", "VND"
 
 ==================================================
 NHIỆM VỤ:
@@ -90,11 +110,11 @@ NHIỆM VỤ:
 Phân tích văn bản OCR và trích xuất thông tin hóa đơn thành JSON với các trường sau:
 
 {{\
-  "store_name": "Tên cửa hàng hoặc công ty",
-  "date": "Ngày giao dịch (định dạng: dd/mm/yyyy hoặc tương tự)",
-  "total_amount": "Tổng số tiền thanh toán (dạng số)",
+  "store_name": "Tên cửa hàng/công ty (ĐÃ SỬA LỖI nếu cần)",
+  "date": "Ngày giao dịch (định dạng: dd/mm/yyyy)",
+  "total_amount": "Tổng số tiền (dạng số)",
   "currency": "Đơn vị tiền tệ (VND, USD, EUR, JPY, etc.)",
-  "categoryId": "ID của category phù hợp nhất từ danh sách",
+  "categoryId": "ID của category phù hợp nhất",
   "needRescan": "true hoặc false"
 }}
 
@@ -116,7 +136,11 @@ QUY TẮC TRÍCH XUẤT:
    - Tìm ngày/tháng/năm hoặc giờ phút
    - Các định dạng phổ biến: dd/mm/yyyy, dd-mm-yyyy, yyyy-mm-dd
    - Từ khóa: "Date", "Ngày", "Time", "Thời gian"
-   - Nếu không tìm thấy → null
+   - ⚠️ **QUAN TRỌNG - Xử lý ngày tương lai:**
+     * Nếu ngày > ngày hiện tại ({datetime.now().strftime("%d/%m/%Y")}) → DÙNG NGÀY HIỆN TẠI
+     * Nếu năm > 2025 (lỗi OCR như "2625") → Sửa thành năm hiện tại
+     * Nếu KHÔNG tìm thấy ngày HOẶC không parse được → DÙNG NGÀY HIỆN TẠI
+   - Format output: dd/mm/yyyy
 
 3. **total_amount (Tổng tiền):**
    - Tìm số tiền cuối cùng (tổng thanh toán)
@@ -138,7 +162,8 @@ QUY TẮC TRÍCH XUẤT:
      * Siêu thị, cửa hàng thực phẩm → "Mua sắm"
      * Nhà hàng, quán ăn, cafe → "Ăn uống"
      * Cửa hàng quần áo, giày dép → "Mua sắm"
-     * Xăng dầu, rửa xe → "Xe cộ" hoặc "Di chuyển"
+     * VÉ XE BUÝT, taxi, grab, xe ôm → "Di chuyển" hoặc "Xe cộ"
+     * Xăng dầu, rửa xe, bảo dưỡng xe → "Xe cộ" hoặc "Di chuyển"
      * Rạp chiếu phim, karaoke → "Giải trí"
    - Nếu KHÔNG CHẮC CHẮN hoặc không có category phù hợp → null
 
@@ -176,7 +201,26 @@ XỬ LÝ SỐ TIỀN (CURRENCY PARSING):
 VÍ DỤ PHÂN TÍCH:
 ==================================================
 
-**Ví dụ 1 - Hóa đơn siêu thị:**
+**Ví dụ 1 - VÉ XE BUÝT với lỗi OCR (QUAN TRỌNG):**
+OCR Text: "NGYIDVVIHHTHA\\nCHI NHANH THANH PHO HO CHIMINH\\nVEXEBUYTLUOT\\nCiave6,000 dong/uor\\nNgy16/11/2625"
+Phân tích:
+- "VEXEBUYTLUOT" → Đây là vé xe buýt
+- "NGYIDVVIHHTHA" → Tên công ty (có thể là tên viết tắt hoặc OCR lỗi)
+- "THANH PHO HO CHIMINH" → TP. Hồ Chí Minh
+- "Ciave6,000 dong" → Giá vé 6,000 đồng
+- "Ngy16/11/2625" → Năm 2625 là lỗi OCR → Sửa thành 16/11/2025
+- Nếu 16/11/2025 > ngày hiện tại → Dùng ngày hiện tại {datetime.now().strftime("%d/%m/%Y")}
+Output:
+{{
+  "store_name": "NGYIDVVIHHTHA - Chi nhánh TP HCM",
+  "date": "{datetime.now().strftime("%d/%m/%Y")}",
+  "total_amount": 6000,
+  "currency": "VND",
+  "categoryId": "[ID của Di chuyển hoặc Xe cộ]",
+  "needRescan": false
+}}
+
+**Ví dụ 2 - Hóa đơn siêu thị:**
 OCR Text: "VINMART\\nNgày: 25/12/2024\\nTổng cộng: 1.580.000đ"
 Output:
 {{
