@@ -471,15 +471,7 @@ def forecast_current_month():
         print(df_daily.to_markdown(index=False))
         print()
 
-        # Setup lễ tết (tùy chỉnh)
-        custom_holidays = pd.DataFrame({
-            'holiday': 'spending_event',
-            'ds': pd.to_datetime(['2024-12-24', '2024-12-25', '2024-12-31', 
-                                  '2025-12-24', '2025-12-25', '2025-12-31', '2026-01-01']),
-            'lower_window': 0, 'upper_window': 1,
-        })
-
-        m = Prophet(holidays=custom_holidays, daily_seasonality=False)
+        m = Prophet(daily_seasonality=False)
         m.add_country_holidays(country_name='VN')
         m.fit(df_daily)
 
