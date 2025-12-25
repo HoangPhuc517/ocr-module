@@ -288,6 +288,14 @@ def classify_email():
         body = data.get("body", "")
         categories = data.get("categories", [])
 
+        print("🚀 Gemini Email Classification API")
+        print("-----------------------------")
+        print(f"Tiêu đề: {subject}")
+        print(f"Tóm tắt: {snippet}")
+        print(f"Nội dung: {body}")
+        print(f"Categories: {categories}")
+        print("-----------------------------")
+
         # 1. Xây dựng Prompt (Dịch từ C#)
         instruction = f"""Bạn là chuyên gia phân loại email. Nhiệm vụ của bạn là xác định xem email có phải là hóa đơn (invoice), biên lai (receipt), hay thông báo thanh toán không.
 
@@ -360,7 +368,13 @@ Trả về JSON với format:
         try:
             text = result["candidates"][0]["content"]["parts"][0]["text"]
             # Gemini trả về JSON chuẩn rồi, load trực tiếp
-            return jsonify(json.loads(text))
+            parsed_result = json.loads(text)
+            
+            print("✅ Kết quả phân loại email:")
+            print(json.dumps(parsed_result, indent=2, ensure_ascii=False))
+            print("-----------------------------")
+            
+            return jsonify(parsed_result)
         except Exception as ex:
             # Fallback nếu lỗi parse
             return jsonify({
